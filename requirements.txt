@@ -1,4 +1,4 @@
---upgrade pip setuptools wheel
+
 
 # Core packages
 streamlit>=1.31.0
