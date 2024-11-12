@@ -1,6 +1,19 @@
-.env
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.so
+.env
+.venv
+env/
+venv/
+
+# OS
 .DS_Store
-.streamlit/secrets.toml
-chromadb/
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# DO NOT ignore FAISS files
+!processed_data.faiss/
