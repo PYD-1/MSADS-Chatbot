@@ -1,9 +1,10 @@
 import streamlit as st
-from langchain_openai import ChatOpenAI
-import pickle
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 import os
-import numpy as np
-from typing import List
 
 # Page config
 st.set_page_config(
@@ -17,48 +18,62 @@ if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'api_key' not in st.session_state:
     st.session_state.api_key = None
-if 'preprocessed_data' not in st.session_state:
-    st.session_state.preprocessed_data = None
+if 'rag_chain' not in st.session_state:
+    st.session_state.rag_chain = None
 
 @st.cache_resource
-def load_preprocessed_data():
-    """Load the preprocessed data from pickle file"""
+def load_vectorstore(api_key):
+    """Load the preprocessed vector store"""
     try:
-        with open('processed_data.pkl', 'rb') as f:
-            return pickle.load(f)
+        os.environ['OPENAI_API_KEY'] = api_key
+        embeddings = OpenAIEmbeddings()
+        vectorstore = FAISS.load_local("processed_data.faiss", embeddings)
+        return vectorstore
     except Exception as e:
-        st.error(f"Error loading preprocessed data: {str(e)}")
+        st.error(f"Error loading vector store: {str(e)}")
         return None
 
-def find_relevant_texts(query: str, preprocessed_data: dict, k: int = 3) -> List[str]:
-    """Find the most relevant texts using cosine similarity"""
-    from langchain_openai import OpenAIEmbeddings
+@st.cache_resource
+def initialize_rag_chain(vectorstore):
+    """Initialize the RAG chain with the loaded vector store"""
+    # Create retriever
+    retriever = vectorstore.as_retriever()
     
-    # Get query embedding
-    embeddings = OpenAIEmbeddings()
-    query_embedding = embeddings.embed_query(query)
+    # Your custom prompt template
+    template = """Please provide enough detail in your answer. If applicable, you may provide an URL relavent to the question asked. Answer the question based on the following context:
+    {context}
     
-    # Calculate similarities
-    similarities = [
-        np.dot(query_embedding, doc_embedding) / 
-        (np.linalg.norm(query_embedding) * np.linalg.norm(doc_embedding))
-        for doc_embedding in preprocessed_data['embeddings']
-    ]
+    Question: {question}
+    """
     
-    # Get top k most similar texts
-    top_k_indices = np.argsort(similarities)[-k:][::-1]
-    return [preprocessed_data['texts'][i] for i in top_k_indices]
+    prompt = ChatPromptTemplate.from_template(template)
+    
+    # Create LLM
+    llm = ChatOpenAI(
+        model_name="gpt-3.5-turbo",
+        temperature=0
+    )
+    
+    # Create and return RAG chain
+    rag_chain = (
+        {"context": retriever, "question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+    
+    return rag_chain
 
 # Main app interface
 st.title("🎓 MADS Program Chat Assistant")
 
-# Load preprocessed data
-if st.session_state.preprocessed_data is None:
-    with st.spinner("Loading knowledge base..."):
-        st.session_state.preprocessed_data = load_preprocessed_data()
-        if st.session_state.preprocessed_data is None:
-            st.error("Failed to load knowledge base")
-            st.stop()
+# Check for vectorstore
+if not os.path.exists("processed_data.faiss"):
+    st.error("""
+    Preprocessed data not found! Please run preprocess.py first.
+    Check the README.md for instructions.
+    """)
+    st.stop()
 
 # API Key input
 if not st.session_state.api_key:
@@ -68,12 +83,17 @@ if not st.session_state.api_key:
         
         if submitted and api_key.startswith('sk-'):
             st.session_state.api_key = api_key
-            os.environ['OPENAI_API_KEY'] = api_key
             st.rerun()
         elif submitted:
             st.error("Please enter a valid OpenAI API key")
 
 else:
+    # Load vectorstore and initialize RAG chain if needed
+    if st.session_state.rag_chain is None:
+        with st.spinner("Loading knowledge base..."):
+            vectorstore = load_vectorstore(st.session_state.api_key)
+            st.session_state.rag_chain = initialize_rag_chain(vectorstore)
+
     # Display chat messages
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -89,30 +109,9 @@ else:
         # Generate response
         with st.chat_message("assistant"):
             try:
-                # Get relevant context
-                relevant_texts = find_relevant_texts(
-                    question, 
-                    st.session_state.preprocessed_data
-                )
-                context = "\n\n".join(relevant_texts)
-                
-                # Generate response using ChatGPT
-                chat = ChatOpenAI(
-                    model_name="gpt-3.5-turbo",
-                    temperature=0
-                )
-                
-                response = chat.predict(
-                    f"""Based on this context: {context}
-                    
-                    Answer this question: {question}
-                    
-                    Give a clear and concise answer."""
-                )
-                
+                response = st.session_state.rag_chain.invoke(question)
                 st.write(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
@@ -125,6 +124,17 @@ else:
             st.session_state.api_key = None
             st.session_state.messages = []
             st.rerun()
+
+        # Add some helpful information
+        st.markdown("---")
+        st.markdown("""
+        ### About this Assistant
+        This chatbot helps you learn about the UChicago MADS program by:
+        - Providing accurate program information
+        - Answering admission questions
+        - Explaining course details
+        - Sharing relevant URLs
+        """)
 
 # Footer
 st.markdown("---")
