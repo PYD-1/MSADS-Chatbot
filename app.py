@@ -59,7 +59,7 @@ Question: {question}
 Guidelines:
 1. Use only information from the context provided.
 2. Craft a detailed response that addresses the inquiry directly.
-3. Use bullet points for distinct points if applicable.
+3. Use bullet points points if applicable.
 4. Include a relevant URL if it directly supports the answer, please only select from the following urls: https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/
 https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/faqs/
 https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/tuition-fees-aid/
