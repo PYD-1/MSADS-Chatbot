@@ -52,10 +52,27 @@ def find_relevant_context(query: str, preprocessed_data: dict, k: int = 3) -> st
     return "\n\n".join(relevant_texts)
 
 # Your custom prompt template
-PROMPT_TEMPLATE = """Please provide detail in your answer. If applicable, you may provide an URL relavent to the question asked. Answer the question based on the following context:
+PROMPT_TEMPLATE = """Given the context below, please provide an accurate and detailed response to the user's inquiry about the MS in Applied Data Science program at the University of Chicago:
 {context}
 
 Question: {question}
+Guidelines:
+1. Use only information from the context provided.
+2. Craft a detailed response that addresses the inquiry directly.
+3. Use bullet points for distinct points if applicable.
+4. Include a relevant URL if it directly supports the answer, please only select from the following urls: https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/faqs/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/tuition-fees-aid/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/in-person-program/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/course-progressions/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/capstone-projects/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/instructors-staff/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/online-program/%20
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/our-students/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/how-to-apply/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/online-program/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/career-outcomes/
+https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/events-deadlines/
 """
 
 # Main app interface
